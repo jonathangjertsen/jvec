@@ -38,6 +38,7 @@ class Rectangle(Shape):
             'upper_left': None,
             'hover_thickness': 5,
             'hover_size': 5,
+            'corner_size': 15,
             'hover_color': (150, 200, 150),
             'drag_color': (200, 150, 150),
             'release_color': (150, 150, 200),
@@ -81,7 +82,17 @@ class Rectangle(Shape):
         if not self.held_edge:
             return
 
-        if self.held_edge == 'left':
+        if self.held_edge == 'corner_top_left':
+            self.upper_left =  mouse_pos
+        elif self.held_edge == 'corner_top_right':
+            self.upper_left = self.upper_left[0], mouse_pos[1]
+            self.lower_right = mouse_pos[0], self.lower_right[1]
+        elif self.held_edge == 'corner_bottom_left':
+            self.upper_left =  mouse_pos[0],  self.upper_left[1]
+            self.lower_right =  self.lower_right[0], mouse_pos[1]
+        elif self.held_edge == 'corner_bottom_right':
+            self.lower_right = mouse_pos
+        elif self.held_edge == 'left':
             self.upper_left =  mouse_pos[0],  self.upper_left[1]
         elif self.held_edge == 'right':
             self.lower_right = mouse_pos[0], self.lower_right[1]
@@ -101,7 +112,15 @@ class Rectangle(Shape):
         x0, y0 = self.upper_left
         x1, y1 = self.lower_right
 
-        if abs(x0 - mouse_pos[0]) < self.hover_size and y0 < mouse_pos[1] < y1:
+        if abs(x0 - mouse_pos[0]) < self.corner_size and abs(y0 - mouse_pos[1]) < self.corner_size:
+            return 'corner_top_left'
+        elif abs(x1 - mouse_pos[0]) < self.corner_size and abs(y0 - mouse_pos[1]) < self.corner_size:
+            return 'corner_top_right'
+        if abs(x0 - mouse_pos[0]) < self.corner_size and abs(y1 - mouse_pos[1]) < self.corner_size:
+            return 'corner_bottom_left'
+        elif abs(x1 - mouse_pos[0]) < self.corner_size and abs(y1 - mouse_pos[1]) < self.corner_size:
+            return 'corner_bottom_right'
+        elif abs(x0 - mouse_pos[0]) < self.hover_size and y0 < mouse_pos[1] < y1:
             return 'left'
         elif abs(x1 - mouse_pos[0]) < self.hover_size and y0 < mouse_pos[1] < y1:
             return 'right'
@@ -152,7 +171,15 @@ class Rectangle(Shape):
 
         painter.setBrush(*color)
 
-        if edge == 'left':
+        if edge == 'corner_top_left':
+            painter.drawRect(x0 - self.corner_size / 2, y0 - self.corner_size / 2, self.corner_size, self.corner_size)
+        elif edge == 'corner_top_right':
+            painter.drawRect(x1 - self.corner_size / 2, y0 - self.corner_size / 2, self.corner_size, self.corner_size)
+        elif edge == 'corner_bottom_left':
+            painter.drawRect(x0 - self.corner_size / 2, y1 - self.corner_size / 2, self.corner_size, self.corner_size)
+        elif edge == 'corner_bottom_right':
+            painter.drawRect(x1 - self.corner_size / 2, y1 - self.corner_size / 2, self.corner_size, self.corner_size)
+        elif edge == 'left':
             painter.drawRect(x0 - self.hover_size / 2, y0, self.hover_size, self.height)
         elif edge == 'right':
             painter.drawRect(x1 - self.hover_size / 2, y0, self.hover_size, self.height)
