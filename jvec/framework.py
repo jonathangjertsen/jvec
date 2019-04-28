@@ -17,8 +17,15 @@ class CountingSemaphore(object):
 
 
 class Representable(object):
+    def defaults(self):
+        return {}
+
+    def protected(self):
+        return {}
+
     def __init__(self, *args, **params):
         self._params = params
+        self.load_params(params.copy(), self.defaults())
 
     def load_params(self, params: dict, defaults: dict):
         names = defaults.keys()
@@ -32,6 +39,8 @@ class Representable(object):
             else:
                 setattr(self, name, params.pop(name, defaults[name]))
 
+    def unprotected_defaults(self):
+        return { key: val for key, val in self.defaults().items() if key not in self.protected() }
 
     def export(self):
         data = self.data()
@@ -42,6 +51,11 @@ class Representable(object):
     def data(self):
         return { name: getattr(self, name) for name in self._params }
 
+    def make_clone(self):
+        return type(self)(**self.data())
+
+    def paste_params(self, other):
+        self.load_params(other._params, self.DEFAULTS)
 
     def __repr__(self):
         typename = type(self).__name__

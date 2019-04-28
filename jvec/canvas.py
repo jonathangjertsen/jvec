@@ -45,6 +45,8 @@ class Canvas(QWidget, Representable):
     def __init__(self, **params):
         super().__init__()
         self.shapes = {}
+        self.shapes_to_create = []
+        self.shapes_to_delete = []
         self.mouse_pos = (0, 0)
         self.flags = {
             'mouse_claimed': CountingSemaphore(),
@@ -67,6 +69,7 @@ class Canvas(QWidget, Representable):
         })
         self.initUI()
         self.held_keys = set()
+        self.painting = False
 
 
     def export(self):
@@ -75,8 +78,24 @@ class Canvas(QWidget, Representable):
 
 
     def register(self, shape):
-        self.shapes[shape.name] = shape
+        if not self.painting:
+            self.shapes[shape.name] = shape
+        else:
+            self.shapes_to_create.append(shape)
 
+    def unregister(self, shape):
+        if not self.painting:
+            self.shapes.pop(shape.name, None)
+        else:
+            self.shapes_to_delete.append(shape)
+
+    def after_painting(self):
+        for shape in self.shapes_to_create:
+            self.shapes[shape.name] = shape
+        for shape in self.shapes_to_delete:
+            self.shapes.pop(shape.name, None)
+        self.shapes_to_create = []
+        self.shapes_to_delete = []
 
     def initUI(self):
         self.setGeometry(self.x0, self.y0, self.window_width, self.window_height)
@@ -99,6 +118,7 @@ class Canvas(QWidget, Representable):
         self.flags['released'] = False
         self.update()
 
+
     def mouseReleaseEvent(self, event):
         self.mouse_pos = event.x(), event.y()
         self.flags['clicked'] = False
@@ -119,6 +139,8 @@ class Canvas(QWidget, Representable):
 
     def paintEvent(self, event):
         with Qt5Painter(self) as painter:
+            self.painting = True
             painter.setPen(0, 0, 0)
             for shape in self.shapes.values():
                 shape.draw(painter, mouse_pos=self.mouse_pos, flags=self.flags)
+        self.after_painting()

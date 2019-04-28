@@ -1,3 +1,5 @@
+import re
+
 from jvec.framework import Representable, REQUIRED
 
 
@@ -33,18 +35,40 @@ def mirror_edge(edge):
 
 
 class Shape(Representable):
+    def defaults(self):
+        return {
+            'name': REQUIRED,
+            **super().defaults()
+        }
+
+    def protected(self):
+        return {
+            'name',
+            *super().protected()
+        }
+
     def __init__(self, canvas: 'Canvas', **params):
         super().__init__(canvas, **params)
-        self.load_params(params, {
-            'name': REQUIRED
-        })
-        canvas.register(self)
+        self.canvas = canvas
+        self.canvas.register(self)
+
+    def make_clone(self):
+        clone_token = "__clone__"
+        rex = re.compile("(.*{})(\d+)".format(clone_token))
+        data = self.data()
+        match = rex.match(data['name'])
+        if match:
+            nonnum, num = match.groups()
+            num = int(num) + 1
+            data['name'] = f"{nonnum}{num}"
+        else:
+            data['name'] = f"{data['name']}{clone_token}0"
+        return type(self)(self.canvas, **data)
 
 
 class Rectangle(Shape):
-    def __init__(self, canvas, **params):
-        super().__init__(canvas, **params)
-        self.load_params(params, {
+    def defaults(self):
+        return {
             'color': None,
             'width': None,
             'height': None,
@@ -56,27 +80,60 @@ class Rectangle(Shape):
             'hover_color': (150, 200, 150),
             'drag_color': (200, 150, 150),
             'release_color': (150, 150, 200),
-        })
-        fill_in_the_blanks(self)
+            **super().defaults()
+        }
 
+
+    def __init__(self, canvas, **params):
+        super().__init__(canvas, **params)
         self.held_edge = None
         self.held_from = None
+        self.held_clone = None
+
+
+    def load_params(self, params: dict, defaults: dict):
+        super().load_params(params, defaults)
+        fill_in_the_blanks(self)
 
 
     def draw(self, painter, mouse_pos=(0,0), flags=None):
         if flags is None:
             flags = {}
 
-        if flags['shift'] and self.held_edge:
-            self.move_if_held(mirror_edge(self.held_edge), self.mirror_mouse(mouse_pos))
-        self.move_if_held(self.held_edge, mouse_pos)
-
+        self.handle_movement(mouse_pos, flags)
         self.draw_main(painter)
         self.draw_edges(painter, mouse_pos, flags)
 
 
+    def handle_movement(self, mouse_pos, flags):
+        rect_to_move = self
+        if self.held_edge:
+            if flags['alt']:
+                if self.held_clone is None:
+                    self.held_clone = self.make_clone()
+                    self.held_clone.held_edge = self.held_edge
+                    self.held_clone.held_from = self.held_from
+                rect_to_move = self.held_clone
+            else:
+                if self.held_clone is not None:
+                    self.eat_clone()
+
+        if flags['shift'] and rect_to_move.held_edge:
+            rect_to_move.move_if_held(mirror_edge(rect_to_move.held_edge), rect_to_move.mirror_mouse(mouse_pos))
+        rect_to_move.move_if_held(rect_to_move.held_edge, mouse_pos)
+
+
+    def eat_clone(self):
+        self.load_params(self.held_clone._params, self.unprotected_defaults())
+        self.held_edge = self.held_clone.held_edge
+        self.held_from = self.held_clone.held_from
+        self.canvas.unregister(self.held_clone)
+        self.held_clone = None
+
+
     def mirror_mouse(self, mouse_pos):
         return self.lower_right[0] + self.upper_left[0] - mouse_pos[0], self.lower_right[1] + self.upper_left[1] - mouse_pos[1]
+
 
     def recalculate_height_and_width(self):
         self.height = None
