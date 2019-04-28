@@ -1,3 +1,5 @@
+import re
+
 REQUIRED = "__REQUIRED__"
 
 
@@ -61,3 +63,35 @@ class Representable(object):
         typename = type(self).__name__
         args = ", ".join(f"{k}={repr(v)}" for k, v in self.data().items())
         return f"{typename}(canvas, {args})"
+
+
+class Shape(Representable):
+    def defaults(self):
+        return {
+            'name': REQUIRED,
+            **super().defaults()
+        }
+
+    def protected(self):
+        return {
+            'name',
+            *super().protected()
+        }
+
+    def __init__(self, canvas: 'Canvas', **params):
+        super().__init__(canvas, **params)
+        self.canvas = canvas
+        self.canvas.register(self)
+
+    def make_clone(self):
+        clone_token = "__clone__"
+        rex = re.compile("(.*{})(\d+)".format(clone_token))
+        data = self.data()
+        match = rex.match(data['name'])
+        if match:
+            nonnum, num = match.groups()
+            num = int(num) + 1
+            data['name'] = f"{nonnum}{num}"
+        else:
+            data['name'] = f"{data['name']}{clone_token}0"
+        return type(self)(self.canvas, **data)

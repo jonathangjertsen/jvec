@@ -5,6 +5,9 @@ class PainterInterface(object):
     def drawRect(self, x0, y0, width, height):
         pass
 
+    def drawLine(self, *args):
+        pass
+
     def setPen(self, *color):
         pass
 

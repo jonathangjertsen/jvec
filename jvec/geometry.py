@@ -1,6 +1,4 @@
-import re
-
-from jvec.framework import Representable, REQUIRED
+from jvec.framework import Representable, Shape
 
 
 def fill_in_the_blanks(self):
@@ -30,40 +28,9 @@ MIRRORS = {
     **{ value: key for key, value in MIRRORS.items() }
 }
 
+
 def mirror_edge(edge):
     return MIRRORS.get(edge, None)
-
-
-class Shape(Representable):
-    def defaults(self):
-        return {
-            'name': REQUIRED,
-            **super().defaults()
-        }
-
-    def protected(self):
-        return {
-            'name',
-            *super().protected()
-        }
-
-    def __init__(self, canvas: 'Canvas', **params):
-        super().__init__(canvas, **params)
-        self.canvas = canvas
-        self.canvas.register(self)
-
-    def make_clone(self):
-        clone_token = "__clone__"
-        rex = re.compile("(.*{})(\d+)".format(clone_token))
-        data = self.data()
-        match = rex.match(data['name'])
-        if match:
-            nonnum, num = match.groups()
-            num = int(num) + 1
-            data['name'] = f"{nonnum}{num}"
-        else:
-            data['name'] = f"{data['name']}{clone_token}0"
-        return type(self)(self.canvas, **data)
 
 
 class Rectangle(Shape):

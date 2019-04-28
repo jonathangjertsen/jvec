@@ -32,6 +32,9 @@ class Qt5Painter(PainterInterface):
     def drawRect(self, x0, y0, width, height):
         self.qpainter.drawRect(x0, y0, width, height)
 
+    def drawLine(self, *args):
+        self.qpainter.drawLine(*args)
+
     def __enter__(self):
         self.qpainter = QPainter()
         self.qpainter.begin(self.qwidget)
@@ -40,10 +43,38 @@ class Qt5Painter(PainterInterface):
     def __exit__(self, *args):
         self.qpainter.end()
 
+class Grid(object):
+    def __init__(self, canvas):
+        self.canvas = canvas
+
+    def draw(self, painter):
+        grid_x = self.canvas.grid_x
+        grid_y = self.canvas.grid_y
+        width = self.canvas.window_width
+        height = self.canvas.window_height
+
+        for x in range(0, width, grid_x):
+            painter.drawLine(x, 0, x, height)
+        for y in range(0, height, grid_y):
+            painter.drawLine(0, y, width, y)
+
 
 class Canvas(QWidget, Representable):
+    def defaults(self):
+        return {
+            'x0': 300,
+            'y0': 300,
+            'grid_x': 1,
+            'grid_y': 1,
+            'window_width': 450,
+            'window_height': 400,
+            'title': 'Editor',
+            **super().defaults()
+        }
+
     def __init__(self, **params):
-        super().__init__()
+        QWidget.__init__(self)
+        Representable.__init__(self, **params)
         self.shapes = {}
         self.shapes_to_create = []
         self.shapes_to_delete = []
@@ -58,18 +89,10 @@ class Canvas(QWidget, Representable):
                 in MODIFIERS.values()
             }
         }
-        self.load_params(params, {
-            'x0': 300,
-            'y0': 300,
-            'grid_x': 1,
-            'grid_y': 1,
-            'window_width': 450,
-            'window_height': 400,
-            'title': 'Editor',
-        })
         self.initUI()
         self.held_keys = set()
         self.painting = False
+        self.grid = Grid(self)
 
 
     def export(self):
@@ -107,9 +130,8 @@ class Canvas(QWidget, Representable):
     def mouseMoveEvent(self, event):
         x = event.x()
         y = event.y()
-        if not (x % self.grid_x) or not (y % self.grid_y):
-            self.mouse_pos = x, y
-            self.update()
+        self.mouse_pos = x - x % self.grid_x, y - y % self.grid_y
+        self.update()
 
 
     def mousePressEvent(self, event):
@@ -140,6 +162,10 @@ class Canvas(QWidget, Representable):
     def paintEvent(self, event):
         with Qt5Painter(self) as painter:
             self.painting = True
+
+            painter.setPen(0, 0, 0, 30)
+            self.grid.draw(painter)
+
             painter.setPen(0, 0, 0)
             for shape in self.shapes.values():
                 shape.draw(painter, mouse_pos=self.mouse_pos, flags=self.flags)
