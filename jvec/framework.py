@@ -3,6 +3,49 @@ import re
 REQUIRED = "__REQUIRED__"
 
 
+class point(tuple):
+    __slots__ = []
+
+    def __new__(cls, *args):
+        if len(args) == 2:
+            return tuple.__new__(cls, args)
+        elif len(args) == 1:
+            return args
+        raise ValueError(f"len(args) must be 1 or 2, not {len(args)}")
+
+    @property
+    def x(self):
+        return self[0]
+
+    @property
+    def y(self):
+        return self[1]
+
+    def __add__(self, other):
+        return point(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other):
+        return point(self.x - other.x, self.y - other.y)
+
+    def __radd__(self, other):
+        return self + other
+
+    def __rsub__(self, other):
+        return self - other
+
+    def __len__(self):
+        return 2
+
+    def __repr__(self):
+        return "({}, {})".format(self.x, self.y)
+
+    def __str__(self):
+        return repr(self)
+
+    def __mod__(self, other):
+        return point(self.x % other.x, self.y % other.y)
+
+
 class CountingSemaphore(object):
     def __init__(self):
         self.value = 0

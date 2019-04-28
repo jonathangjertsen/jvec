@@ -31,15 +31,6 @@ class MainWindow(QMainWindow):
             data = self.canvas.export()
             self.ui.text_current_json.setPlainText(data)
 
-    def mouseMoveEvent(self, event):
-        self.canvas._mouseMove(event)
-
-    def mousePressEvent(self, event):
-        self.canvas._mousePress(event)
-
-    def mouseReleaseEvent(self, event):
-        self.canvas._mouseRelease(event)
-
     def keyPressEvent(self, event):
         self.canvas._keyPress(event)
 

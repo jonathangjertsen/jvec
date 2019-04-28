@@ -3,7 +3,7 @@ import json
 from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtWidgets import QWidget
 
-from jvec.framework import CountingSemaphore, Representable
+from jvec.framework import CountingSemaphore, Representable, point
 from jvec.painter import PainterInterface
 
 
@@ -31,8 +31,8 @@ class Qt5Painter(PainterInterface):
     def drawRect(self, x0, y0, width, height):
         self.qpainter.drawRect(x0, y0, width, height)
 
-    def drawLine(self, x0, y0, x1, y1):
-        self.qpainter.drawLine(x0, y0, x1, y1)
+    def drawLine(self, p0, p1):
+        self.qpainter.drawLine(*p0, *p1)
 
     def __enter__(self):
         self.qpainter = QPainter()
@@ -47,15 +47,11 @@ class Grid(object):
         self.canvas = canvas
 
     def draw(self, painter):
-        grid_x = self.canvas.grid_x
-        grid_y = self.canvas.grid_y
-        width = self.canvas.window_width
-        height = self.canvas.window_height
 
-        for x in range(0, width, grid_x):
-            painter.drawLine(x, 0, x, height)
-        for y in range(0, height, grid_y):
-            painter.drawLine(0, y, width, y)
+        for x in range(0, self.canvas.window_size.x, self.canvas.grid_xy.x):
+            painter.drawLine(point(x, 0), point(x, self.canvas.window_size.y))
+        for y in range(0, self.canvas.window_size.y, self.canvas.grid_xy.y):
+            painter.drawLine(point(0, y), point(self.canvas.window_size.x, y))
 
 
 class Canvas(QWidget, Representable):
@@ -63,25 +59,36 @@ class Canvas(QWidget, Representable):
         return {
             'x0': 300,
             'y0': 300,
-            'grid_x': 1,
-            'grid_y': 1,
-            'translation': (100, 100),
-            'window_width': 450,
-            'window_height': 400,
+            'grid_xy' : point(10, 10),
+            'translation': point(100, 100),
+            'window_size': point(450, 400),
             'title': 'Editor',
             'line_width': 10,
             **super().defaults()
         }
 
     def __init__(self, app, **params):
+        # Call superclasses
         QWidget.__init__(self, app.ui.centralwidget)
         Representable.__init__(self, **params)
 
+        # Save the app
         self.app = app
+
+        # Set geometry etc.
+        self.initUI()
+
+        # Init grid
+        self.grid = Grid(self)
+        self.show_grid = True
+
+        # Init shapes
         self.shapes = {}
         self.shapes_to_create = []
         self.shapes_to_delete = []
-        self.mouse_pos = (0, 0)
+
+        # Init state
+        self.mouse_pos = point(0, 0)
         self.flags = {
             'mouse_claimed': CountingSemaphore(),
             'clicked': False,
@@ -92,20 +99,15 @@ class Canvas(QWidget, Representable):
                 in MODIFIERS.values()
             }
         }
-        self.initUI()
         self.held_keys = set()
         self.painting = False
-        self.grid = Grid(self)
-        self.show_grid = True
 
     def set_grid_size(self, x, y):
-        self.grid_x = x
-        self.grid_y = y
+        self.grid_xy = point(x, y)
 
     def export(self):
         data = { name: shape.export() for name, shape in self.shapes.items() }
         return json.dumps(data, indent=4)
-
 
     def register(self, shape):
         if not self.painting:
@@ -128,26 +130,27 @@ class Canvas(QWidget, Representable):
         self.shapes_to_delete = []
 
     def initUI(self):
-        self.setGeometry(self.x0, self.y0, self.window_width, self.window_height)
+        self.setGeometry(self.x0, self.y0, *self.window_size)
         self.setWindowTitle(self.title)
         self.setMouseTracking(True)
         self.show()
 
-    def _mouseMove(self, event):
-        x = event.x()
-        y = event.y()
-        self.mouse_pos = x - x % self.grid_x, y - y % self.grid_y
+    def update_mouse_pos(self, event):
+        xy = point(event.x(), event.y())
+        self.mouse_pos = xy - (xy % self.grid_xy)
+
+    def mouseMoveEvent(self, event):
+        self.update_mouse_pos(event)
         self.update()
 
-    def _mousePress(self, event):
-        self.mouse_pos = event.x(), event.y()
+    def mousePressEvent(self, event):
+        self.update_mouse_pos(event)
         self.flags['clicked'] = True
         self.flags['released'] = False
         self.update()
 
-
-    def _mouseRelease(self, event):
-        self.mouse_pos = event.x(), event.y()
+    def mouseReleaseEvent(self, event):
+        self.update_mouse_pos(event)
         self.flags['clicked'] = False
         self.flags['released'] = True
         self.update()

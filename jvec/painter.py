@@ -16,4 +16,3 @@ class PainterInterface(object):
 
     def __exit__(self, *args):
         pass
-
