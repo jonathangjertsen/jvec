@@ -133,34 +133,32 @@ class Canvas(QWidget, Representable):
         self.setMouseTracking(True)
         self.show()
 
-
-    def mouseMoveEvent(self, event):
+    def _mouseMove(self, event):
         x = event.x()
         y = event.y()
         self.mouse_pos = x - x % self.grid_x, y - y % self.grid_y
         self.update()
 
-
-    def mousePressEvent(self, event):
+    def _mousePress(self, event):
         self.mouse_pos = event.x(), event.y()
         self.flags['clicked'] = True
         self.flags['released'] = False
         self.update()
 
 
-    def mouseReleaseEvent(self, event):
+    def _mouseRelease(self, event):
         self.mouse_pos = event.x(), event.y()
         self.flags['clicked'] = False
         self.flags['released'] = True
         self.update()
 
-    def keyPressEvent(self, event):
+    def _keyPress(self, event):
         key = event.key()
         self.held_keys.add(key)
         if key in MODIFIERS:
             self.flags[MODIFIERS[key]] = True
 
-    def keyReleaseEvent(self, event):
+    def _keyRelease(self, event):
         key = event.key()
         self.held_keys.remove(key)
         if key in MODIFIERS:
