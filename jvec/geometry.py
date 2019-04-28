@@ -17,6 +17,20 @@ def fill_in_the_blanks(self):
         else:
             self.upper_left = (self.lower_right[0] - self.width, self.lower_right[1] - self.height)
 
+MIRRORS = {
+    'corner_top_left': 'corner_bottom_right',
+    'corner_top_right': 'corner_bottom_left',
+    'left': 'right',
+    'top': 'bottom'
+}
+MIRRORS = {
+    **MIRRORS,
+    **{ value: key for key, value in MIRRORS.items() }
+}
+
+def mirror_edge(edge):
+    return MIRRORS.get(edge, None)
+
 
 class Shape(Representable):
     def __init__(self, canvas: 'Canvas', **params):
@@ -53,16 +67,21 @@ class Rectangle(Shape):
         if flags is None:
             flags = {}
 
-        self.move_if_held(mouse_pos)
+        if flags['shift'] and self.held_edge:
+            self.move_if_held(mirror_edge(self.held_edge), self.mirror_mouse(mouse_pos))
+        self.move_if_held(self.held_edge, mouse_pos)
+
         self.draw_main(painter)
         self.draw_edges(painter, mouse_pos, flags)
 
+
+    def mirror_mouse(self, mouse_pos):
+        return self.lower_right[0] + self.upper_left[0] - mouse_pos[0], self.lower_right[1] + self.upper_left[1] - mouse_pos[1]
 
     def recalculate_height_and_width(self):
         self.height = None
         self.width = None
         fill_in_the_blanks(self)
-
 
     def uninvert(self):
         if self.height < 0:
@@ -78,29 +97,29 @@ class Rectangle(Shape):
         fill_in_the_blanks(self)
 
 
-    def move_if_held(self, mouse_pos):
-        if not self.held_edge:
+    def move_if_held(self, held_edge, mouse_pos):
+        if not held_edge:
             return
 
-        if self.held_edge == 'corner_top_left':
+        if held_edge == 'corner_top_left':
             self.upper_left =  mouse_pos
-        elif self.held_edge == 'corner_top_right':
+        elif held_edge == 'corner_top_right':
             self.upper_left = self.upper_left[0], mouse_pos[1]
             self.lower_right = mouse_pos[0], self.lower_right[1]
-        elif self.held_edge == 'corner_bottom_left':
+        elif held_edge == 'corner_bottom_left':
             self.upper_left =  mouse_pos[0],  self.upper_left[1]
             self.lower_right =  self.lower_right[0], mouse_pos[1]
-        elif self.held_edge == 'corner_bottom_right':
+        elif held_edge == 'corner_bottom_right':
             self.lower_right = mouse_pos
-        elif self.held_edge == 'left':
+        elif held_edge == 'left':
             self.upper_left =  mouse_pos[0],  self.upper_left[1]
-        elif self.held_edge == 'right':
+        elif held_edge == 'right':
             self.lower_right = mouse_pos[0], self.lower_right[1]
-        elif self.held_edge == 'top':
+        elif held_edge == 'top':
             self.upper_left = self.upper_left[0], mouse_pos[1]
-        elif self.held_edge == 'bottom':
+        elif held_edge == 'bottom':
             self.lower_right =  self.lower_right[0], mouse_pos[1]
-        elif self.held_edge == 'body':
+        elif held_edge == 'body':
             if self.held_from is None:
                 self.held_from = (self.upper_left[0] - mouse_pos[0], self.upper_left[1] - mouse_pos[1])
             else:

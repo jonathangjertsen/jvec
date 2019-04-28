@@ -7,6 +7,18 @@ from jvec.framework import CountingSemaphore, Representable
 from jvec.painter import PainterInterface
 
 
+MODIFIERS = {
+    16777248: 'shift',
+    16777249: 'ctrl',
+    16777251: 'alt',
+    16777217: 'tab',
+    16777250: 'home',
+    16777220: 'enter',
+    16777219: 'backspace',
+    16777223: 'delete'
+}
+
+
 class Qt5Painter(PainterInterface):
     def __init__(self, qwidget):
         self.qwidget = qwidget
@@ -35,7 +47,14 @@ class Canvas(QWidget, Representable):
         self.shapes = {}
         self.mouse_pos = (0, 0)
         self.flags = {
-            'mouse_claimed': CountingSemaphore()
+            'mouse_claimed': CountingSemaphore(),
+            'clicked': False,
+            'released': False,
+            **{
+                key_name: False
+                for key_name
+                in MODIFIERS.values()
+            }
         }
         self.load_params(params, {
             'x0': 300,
@@ -47,6 +66,7 @@ class Canvas(QWidget, Representable):
             'title': 'Editor',
         })
         self.initUI()
+        self.held_keys = set()
 
 
     def export(self):
@@ -79,13 +99,23 @@ class Canvas(QWidget, Representable):
         self.flags['released'] = False
         self.update()
 
-
     def mouseReleaseEvent(self, event):
         self.mouse_pos = event.x(), event.y()
         self.flags['clicked'] = False
         self.flags['released'] = True
         self.update()
 
+    def keyPressEvent(self, event):
+        key = event.key()
+        self.held_keys.add(key)
+        if key in MODIFIERS:
+            self.flags[MODIFIERS[key]] = True
+
+    def keyReleaseEvent(self, event):
+        key = event.key()
+        self.held_keys.remove(key)
+        if key in MODIFIERS:
+            self.flags[MODIFIERS[key]] = False
 
     def paintEvent(self, event):
         with Qt5Painter(self) as painter:
